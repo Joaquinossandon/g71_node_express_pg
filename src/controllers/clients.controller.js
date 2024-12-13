@@ -14,9 +14,26 @@ const getClientById = async (req, res) => {
 }
 
 const getClients = async (req, res) => {
-  const result = await getAll() // ejecutamos la consulta
+  let { limit, order_by, page = '1' } = req.query // obtenemos el query string
+  const { clients, count, tienePrevio, tieneSiguiente } = await getAll({
+    limit,
+    order_by,
+    page
+  }) // ejecutamos la consulta
 
-  res.json(result) // respondemos con los registros obtenidos
+  const baseurl = `${req.protocol}://${req.get('host')}${req.path}`
+
+  console.log(page)
+  res.json({
+    clients,
+    count,
+    prev: tienePrevio
+      ? `${baseurl}?page=${Number(page) - 1}&limit=${Number(limit)}`
+      : null,
+    next: tieneSiguiente
+      ? `${baseurl}?page=${Number(page) + 1}&limit=${Number(limit)}`
+      : null
+  }) // respondemos con los registros obtenidos
 }
 
 const createClient = async (req, res) => {

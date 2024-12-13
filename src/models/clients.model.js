@@ -1,9 +1,30 @@
 const { pool } = require('../config/db_connection') // importamos la conexión a la base de datos
+const format = require('pg-format')
 
-const getAll = async () => {
-  const { rows } = await pool.query('SELECT nombre, email FROM clientes') // ejecutamos la consulta
+const getAll = async ({ limit = 10, order_by = 'nombre_ASC', page = 2 }) => {
+  const [column_order, type_order] = order_by.split('_')
+  const offset = (page - 1) * limit
 
-  return rows // retornamos los registros obtenidos
+  const formatedQuery = format(
+    'SELECT nombre, email FROM clientes ORDER BY %s %s LIMIT %s OFFSET %s',
+    column_order,
+    type_order,
+    limit,
+    offset
+  )
+  const { rows: clients } = await pool.query(formatedQuery) // ejecutamos la consulta
+
+  // obtenemos el total de registros en la tabla
+  const countQuery = 'SELECT COUNT(*) FROM clientes'
+  const {
+    rows: [{ count }]
+  } = await pool.query(countQuery) // {[{count: 20}]} -> destructuring
+
+  const tieneSiguiente = page * limit < count // si hay más registros por cargar
+
+  const tienePrevio = page > 1 // si hay registros anteriores
+
+  return { clients, count, tienePrevio, tieneSiguiente } // retornamos los registros obtenidos
 }
 
 const getById = async (id) => {
@@ -12,13 +33,6 @@ const getById = async (id) => {
     values: [id] // valores de los parámetros,
     // deben ser un array en el mismo orden que los placeholders ($1)
   })
-
-  /* ---------------
-        las consultas parametrizadas son más seguras que las consultas concatenadas
-        porque evitan la inyección de SQL
-        la inyección de SQL es una técnica que permite a un atacante ejecutar código SQL arbitrario
-        en la base de datos, si no se sanitizan los datos de entrada.
-        --------------- */
 
   return rows // retornamos los registros obtenidos
 }
